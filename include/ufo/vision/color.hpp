@@ -159,7 +159,7 @@ struct Color {
 	 * @return Color
 	 */
 	template <class InputIt>
-	[[nodiscard]] static Color blendColor(InputIt first, InputIt last,
+	[[nodiscard]] static Color blend(InputIt first, InputIt last,
 	                                      ColorBlendingMode blend_mode)
 	{
 		switch (blend_mode) {
@@ -262,9 +262,9 @@ struct Color {
 	 * @return Color
 	 */
 	template <class Container>
-	[[nodiscard]] static Color blendColor(Container const &c, ColorBlendingMode blend_mode)
+	[[nodiscard]] static Color blend(Container const &c, ColorBlendingMode blend_mode)
 	{
-		return blendColor(std::begin(c), std::end(c), blend_mode);
+		return blend(std::begin(c), std::end(c), blend_mode);
 	}
 
 	/*!
@@ -276,10 +276,10 @@ struct Color {
 	 * @param blend_mode
 	 * @return Color
 	 */
-	[[nodiscard]] static Color blendColor(std::initializer_list<Color> ilist,
+	[[nodiscard]] static Color blend(std::initializer_list<Color> ilist,
 	                                      ColorBlendingMode            blend_mode)
 	{
-		return blendColor(std::begin(ilist), std::end(ilist), blend_mode);
+		return blend(std::begin(ilist), std::end(ilist), blend_mode);
 	}
 };
 
