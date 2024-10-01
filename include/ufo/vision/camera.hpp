@@ -47,7 +47,8 @@
 
 // UFO
 #include <ufo/geometry/shape/ray.hpp>
-#include <ufo/math/pose3.hpp>
+#include <ufo/math/mat4x4.hpp>
+#include <ufo/math/trans3.hpp>
 #include <ufo/math/vec.hpp>
 #include <ufo/vision/image.hpp>
 
@@ -57,18 +58,30 @@
 
 namespace ufo
 {
+enum class ProjectionType { PERSPECTIVE, ORTHOGONAL };
+
 /*!
  * @brief Camera
  *
  */
 struct Camera {
-	Pose3f pose;
-	float  vertical_fov;
-	float  near_clip;
-	float  far_clip;
-	Vec3f  up{0, 0, 1};
-	Vec3f  right{0, -1, 0};
-	Vec3f  forward{1, 0, 0};
+	// The pose of the camera in the world, same as the transform that takes you from camera
+	// to world
+	Trans3f        pose;
+	float          vertical_fov;
+	float          near_clip;
+	float          far_clip;
+	float          zoom;  // TODO: Implement
+	Vec3f          up{0, 0, 1};
+	ProjectionType projection_type = ProjectionType::PERSPECTIVE;
+
+	template <bool RightHanded = true>
+	void lookAt(Vec3f const& target)
+	{
+		// We should probably inverse here
+		pose = static_cast<Trans3f>(
+		    ufo::lookAt<float, !RightHanded>(pose.translation, target, up));
+	}
 
 	[[nodiscard]] Image<Ray3> rays(std::size_t rows, std::size_t cols) const
 	{
@@ -79,32 +92,32 @@ struct Camera {
 	[[nodiscard]] Image<Ray3> rays(ExecutionPolicy&& policy, std::size_t rows,
 	                               std::size_t cols) const
 	{
-		float const tan_half_fovy = std::tan(vertical_fov / 2.0f);
-		float const aspect        = cols / static_cast<float>(rows);
+		Mat4x4f proj     = projection(rows, cols);
+		Mat4x4f proj_inv = inverse(proj);
 
-		Mat4x4f perspective(0);
-		perspective[0][0] = 1.0f / (aspect * tan_half_fovy);
-		perspective[1][1] = 1.0f / (tan_half_fovy);
-		perspective[2][2] = far_clip / (far_clip - near_clip);
-		perspective[2][3] = 1.0f;
-		perspective[3][2] = -(far_clip * near_clip) / (far_clip - near_clip);
+		Mat4x4f view(pose);
+		Mat4x4f view_inv = inverse(view);
 
-		auto perspective_inv = perspective;  // inverse(perspective);
-
-		Mat4x4f view     = static_cast<Mat4x4f>(pose);
-		auto    view_inv = view;  // inverse(view);
-
-		Image<Ray3> rays(rows, cols, Ray3(pose.position, {}));
+		Image<Ray3> rays(rows, cols, Ray3(pose.translation, {}));
 
 		auto fun = [&](std::size_t row) {
 			auto r = ((row + 0.5f) / rows) * 2.0f - 1.0f;
 			for (std::size_t col{}; col < cols; ++col) {
 				auto  c = ((col + 0.5f) / cols) * 2.0f - 1.0f;
-				Vec4f p_nds_h(r, c, -1.0f, 1.0f);
-				auto  dir_eye            = perspective_inv * p_nds_h;
+				Vec4f p_nds_h(c, -r, -1.0f, 1.0f);
+				auto  dir_eye            = proj_inv * p_nds_h;
 				dir_eye.w                = 0.0f;
 				auto dir_world           = normalize(Vec3f(view_inv * dir_eye));
 				rays(row, col).direction = dir_world;
+				rays(row, col).origin    = Vec3f(view_inv * Vec4f(Vec3f(0), 1));
+
+				// static auto the_id = std::this_thread::get_id();
+				// if (std::this_thread::get_id() == the_id && 0 == row && 0 == col) {
+				// 	// std::cout << pose.translation << '\n';
+				// 	std::cout << rays(row, col).origin << "\n\n";
+				// }
+
+				// rays(row, col).origin = Vec3f(5.0f, 4.0f, 1.5f);
 			}
 		};
 
@@ -129,6 +142,28 @@ struct Camera {
 		};
 
 		return rays;
+	}
+
+ private:
+	[[nodiscard]] Mat4x4f projection(std::size_t rows, std::size_t cols) const
+	{
+		switch (projection_type) {
+			case ProjectionType::PERSPECTIVE:
+				if (std::isinf(far_clip)) {
+					return infinitePerspective(vertical_fov, cols / static_cast<float>(rows),
+					                           near_clip);
+				} else {
+					return perspective<float, true, true>(
+					    vertical_fov, cols / static_cast<float>(rows), near_clip, far_clip);
+				}
+				break;
+			case ProjectionType::ORTHOGONAL:
+				// TODO: Implement
+				break;
+			default: assert("You did bad");
+		}
+
+		return Mat4x4f();
 	}
 };
 
