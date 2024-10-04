@@ -76,11 +76,10 @@ struct Camera {
 	ProjectionType projection_type = ProjectionType::PERSPECTIVE;
 
 	template <bool RightHanded = true>
-	void lookAt(Vec3f const& target)
+	void lookAt(Vec3f center, Vec3f const& target)
 	{
 		// We should probably inverse here
-		pose = static_cast<Trans3f>(
-		    ufo::lookAt<float, !RightHanded>(pose.translation, target, up));
+		pose = static_cast<Trans3f>(ufo::lookAt<float, RightHanded>(center, target, up));
 	}
 
 	[[nodiscard]] Image<Ray3> rays(std::size_t rows, std::size_t cols) const
@@ -92,30 +91,48 @@ struct Camera {
 	[[nodiscard]] Image<Ray3> rays(ExecutionPolicy&& policy, std::size_t rows,
 	                               std::size_t cols) const
 	{
-		Mat4x4f proj     = projection(rows, cols);
+		switch (projection_type) {
+			case ProjectionType::PERSPECTIVE:
+				return raysPerspective(std::forward<ExecutionPolicy>(policy), rows, cols);
+			case ProjectionType::ORTHOGONAL:
+				return raysOrthogonal(std::forward<ExecutionPolicy>(policy), rows, cols);
+		}
+
+		return Image<Ray3>(0, 0);
+	}
+
+ private:
+	template <class ExecutionPolicy>
+	[[nodiscard]] Image<Ray3> raysPerspective(ExecutionPolicy&& policy, std::size_t rows,
+	                                          std::size_t cols) const
+	{
+		Mat4x4f proj     = projectionPerspective(rows, cols);
 		Mat4x4f proj_inv = inverse(proj);
 
 		Mat4x4f view(pose);
 		Mat4x4f view_inv = inverse(view);
 
-		Image<Ray3> rays(rows, cols, Ray3(pose.translation, {}));
+		std::cout << "Projection\n" << proj << '\n';
+		std::cout << "View\n" << view << '\n';
+
+		Image<Ray3> rays(rows, cols);
 
 		auto fun = [&](std::size_t row) {
 			auto r = ((row + 0.5f) / rows) * 2.0f - 1.0f;
 			for (std::size_t col{}; col < cols; ++col) {
 				auto  c = ((col + 0.5f) / cols) * 2.0f - 1.0f;
 				Vec4f p_nds_h(c, -r, -1.0f, 1.0f);
-				auto  dir_eye            = proj_inv * p_nds_h;
-				dir_eye.w                = 0.0f;
-				auto dir_world           = normalize(Vec3f(view_inv * dir_eye));
-				rays(row, col).direction = dir_world;
-				rays(row, col).origin    = Vec3f(view_inv * Vec4f(Vec3f(0), 1));
+				auto  dir_eye              = proj_inv * p_nds_h;
+				dir_eye.w                  = 0.0f;
+				auto dir_world             = normalize(Vec3f(view_inv * dir_eye));
+				rays(row, col).direction   = dir_world;
+				rays(row, col).origin = Vec3f(view_inv * Vec4f(Vec3f(0), 1));
 
-				// static auto the_id = std::this_thread::get_id();
-				// if (std::this_thread::get_id() == the_id && 0 == row && 0 == col) {
-				// 	// std::cout << pose.translation << '\n';
-				// 	std::cout << rays(row, col).origin << "\n\n";
-				// }
+				static auto the_id = std::this_thread::get_id();
+				if (std::this_thread::get_id() == the_id && 0 == row && 0 == col) {
+					// std::cout << pose.translation << '\n';
+					std::cout << rays(row, col).direction << "\n\n";
+				}
 
 				// rays(row, col).origin = Vec3f(5.0f, 4.0f, 1.5f);
 			}
@@ -126,7 +143,8 @@ struct Camera {
 #if defined(UFO_TBB)
 			std::vector<std::size_t> indices(rows);
 			std::iota(indices.begin(), indices.end(), 0);
-			std::for_each(policy, indices.begin(), indices.end(), fun);
+			std::for_each(std::forward<ExecutionPolicy>(policy), indices.begin(), indices.end(),
+			              fun);
 			return rays;
 #elif defined(UFO_OMP)
 #pragma omp parallel for
@@ -144,26 +162,92 @@ struct Camera {
 		return rays;
 	}
 
- private:
-	[[nodiscard]] Mat4x4f projection(std::size_t rows, std::size_t cols) const
+	template <class ExecutionPolicy>
+	[[nodiscard]] Image<Ray3> raysOrthogonal(ExecutionPolicy&& policy, std::size_t rows,
+	                                         std::size_t cols) const
 	{
-		switch (projection_type) {
-			case ProjectionType::PERSPECTIVE:
-				if (std::isinf(far_clip)) {
-					return infinitePerspective(vertical_fov, cols / static_cast<float>(rows),
-					                           near_clip);
-				} else {
-					return perspective<float, true, true>(
-					    vertical_fov, cols / static_cast<float>(rows), near_clip, far_clip);
+		Mat4x4f proj     = projectionOrthogonal(rows, cols);
+		Mat4x4f proj_inv = inverse(proj);
+
+		Mat4x4f view(pose);
+		Mat4x4f view_inv = inverse(view);
+
+		std::cout << "Projection\n" << proj << '\n';
+		std::cout << "View\n" << view << '\n';
+
+		Image<Ray3> rays(rows, cols);
+
+		auto fun = [&](std::size_t row) {
+			auto r = ((row + 0.5f) / rows) * 2.0f - 1.0f;
+			for (std::size_t col{}; col < cols; ++col) {
+				auto  c = ((col + 0.5f) / cols) * 2.0f - 1.0f;
+				Vec4f p_nds_h(c, r, -1.0f, 1.0f);
+				auto  dir_eye              = proj_inv * p_nds_h;
+				dir_eye.w                  = 0.0f;
+				auto dir_world             = normalize(Vec3f(view_inv * dir_eye));
+				rays(row, col).direction   = dir_world;
+				rays(row, col).direction.x = 0;
+				rays(row, col).direction.y = 0;
+				// rays(row, col).direction.z = 0;
+				rays(row, col).origin = Vec3f(view_inv * Vec4f(Vec3f(0), 1));
+
+				static auto the_id = std::this_thread::get_id();
+				if (std::this_thread::get_id() == the_id && 0 == row && 0 == col) {
+					// std::cout << pose.translation << '\n';
+					std::cout << rays(row, col).direction << "\n\n";
 				}
-				break;
-			case ProjectionType::ORTHOGONAL:
-				// TODO: Implement
-				break;
-			default: assert("You did bad");
+
+				// rays(row, col).origin = Vec3f(5.0f, 4.0f, 1.5f);
+			}
+		};
+
+		if constexpr (!std::is_same_v<execution::sequenced_policy,
+		                              std::decay_t<ExecutionPolicy>>) {
+#if defined(UFO_TBB)
+			std::vector<std::size_t> indices(rows);
+			std::iota(indices.begin(), indices.end(), 0);
+			std::for_each(std::forward<ExecutionPolicy>(policy), indices.begin(), indices.end(),
+			              fun);
+			return rays;
+#elif defined(UFO_OMP)
+#pragma omp parallel for
+			for (std::size_t row = 0; row < rows; ++row) {
+				fun(row);
+			};
+			return rays;
+#endif
 		}
 
-		return Mat4x4f();
+		for (std::size_t row{}; row < rows; ++row) {
+			fun(row);
+		};
+
+		return rays;
+	}
+
+	[[nodiscard]] Mat4x4f projectionPerspective(std::size_t rows, std::size_t cols) const
+	{
+		if (std::isinf(far_clip)) {
+			return infinitePerspective(vertical_fov, cols / static_cast<float>(rows),
+			                           near_clip);
+		} else {
+			return perspective<float, true, true>(vertical_fov, cols / static_cast<float>(rows),
+			                                      near_clip, far_clip);
+		}
+	}
+
+	[[nodiscard]] Mat4x4f projectionOrthogonal(std::size_t rows, std::size_t cols) const
+	{
+		if (std::isinf(far_clip)) {
+			return orthogonal<float>(
+			    -(static_cast<float>(cols) / 2.0f), static_cast<float>(cols) / 2.0f,
+			    static_cast<float>(rows) / 2.0f, -(static_cast<float>(rows) / 2.0f));
+		} else {
+			return orthogonal<float, true, true>(
+			    -(static_cast<float>(cols) / 2.0f), static_cast<float>(cols) / 2.0f,
+			    static_cast<float>(rows) / 2.0f, -(static_cast<float>(rows) / 2.0f), near_clip,
+			    far_clip);
+		}
 	}
 };
 
