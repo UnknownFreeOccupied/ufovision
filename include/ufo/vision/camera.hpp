@@ -72,7 +72,7 @@ struct Camera {
 	float          near_clip;
 	float          far_clip;
 	float          zoom;  // TODO: Implement
-	Vec3f          up{0, 0, 1};
+	Vec3f          up{0.0f, 0.0f, 1.0f};
 	ProjectionType projection_type = ProjectionType::PERSPECTIVE;
 
 	template <bool RightHanded = true>
