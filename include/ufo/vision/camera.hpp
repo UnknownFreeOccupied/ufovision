@@ -122,11 +122,11 @@ struct Camera {
 			for (std::size_t col{}; col < cols; ++col) {
 				auto  c = ((col + 0.5f) / cols) * 2.0f - 1.0f;
 				Vec4f p_nds_h(c, -r, -1.0f, 1.0f);
-				auto  dir_eye              = proj_inv * p_nds_h;
-				dir_eye.w                  = 0.0f;
-				auto dir_world             = normalize(Vec3f(view_inv * dir_eye));
-				rays(row, col).direction   = dir_world;
-				rays(row, col).origin = Vec3f(view_inv * Vec4f(Vec3f(0), 1));
+				auto  dir_eye            = proj_inv * p_nds_h;
+				dir_eye.w                = 0.0f;
+				auto dir_world           = normalize(Vec3f(view_inv * dir_eye));
+				rays(row, col).direction = dir_world;
+				rays(row, col).origin    = Vec3f(view_inv * Vec4f(Vec3f(0), 1));
 
 				// static auto the_id = std::this_thread::get_id();
 				// if (std::this_thread::get_id() == the_id && 0 == row && 0 == col) {
@@ -138,28 +138,26 @@ struct Camera {
 			}
 		};
 
-		if constexpr (!std::is_same_v<execution::sequenced_policy,
-		                              std::decay_t<ExecutionPolicy>>) {
-#if defined(UFO_TBB)
+		if constexpr (execution::is_seq_v<ExecutionPolicy>) {
+			for (std::size_t row{}; row < rows; ++row) {
+				fun(row);
+			};
+
+			return rays;
+		} else if constexpr (execution::is_tbb_v<ExecutionPolicy>) {
 			std::vector<std::size_t> indices(rows);
 			std::iota(indices.begin(), indices.end(), 0);
-			std::for_each(std::forward<ExecutionPolicy>(policy), indices.begin(), indices.end(),
-			              fun);
+			std::for_each(UFO_TBB_PAR indices.begin(), indices.end(), fun);
 			return rays;
-#elif defined(UFO_OMP)
+		} else if constexpr (execution::is_omp_v<ExecutionPolicy>) {
 #pragma omp parallel for
 			for (std::size_t row = 0; row < rows; ++row) {
 				fun(row);
 			};
 			return rays;
-#endif
+		} else {
+			// TODO: Error
 		}
-
-		for (std::size_t row{}; row < rows; ++row) {
-			fun(row);
-		};
-
-		return rays;
 	}
 
 	template <class ExecutionPolicy>
@@ -201,28 +199,26 @@ struct Camera {
 			}
 		};
 
-		if constexpr (!std::is_same_v<execution::sequenced_policy,
-		                              std::decay_t<ExecutionPolicy>>) {
-#if defined(UFO_TBB)
+		if constexpr (execution::is_seq_v<ExecutionPolicy>) {
+			for (std::size_t row{}; row < rows; ++row) {
+				fun(row);
+			};
+
+			return rays;
+		} else if constexpr (execution::is_tbb_v<ExecutionPolicy>) {
 			std::vector<std::size_t> indices(rows);
 			std::iota(indices.begin(), indices.end(), 0);
-			std::for_each(std::forward<ExecutionPolicy>(policy), indices.begin(), indices.end(),
-			              fun);
+			std::for_each(UFO_TBB_PAR indices.begin(), indices.end(), fun);
 			return rays;
-#elif defined(UFO_OMP)
+		} else if constexpr (execution::is_omp_v<ExecutionPolicy>) {
 #pragma omp parallel for
 			for (std::size_t row = 0; row < rows; ++row) {
 				fun(row);
 			};
 			return rays;
-#endif
+		} else {
+			// TODO: Error
 		}
-
-		for (std::size_t row{}; row < rows; ++row) {
-			fun(row);
-		};
-
-		return rays;
 	}
 
 	[[nodiscard]] Mat4x4f projectionPerspective(std::size_t rows, std::size_t cols) const
