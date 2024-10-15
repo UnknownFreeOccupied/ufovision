@@ -48,7 +48,7 @@
 // UFO
 #include <ufo/geometry/shape/ray.hpp>
 #include <ufo/math/mat4x4.hpp>
-#include <ufo/math/trans3.hpp>
+#include <ufo/math/transform3.hpp>
 #include <ufo/math/vec.hpp>
 #include <ufo/vision/image.hpp>
 
@@ -67,7 +67,7 @@ enum class ProjectionType { PERSPECTIVE, ORTHOGONAL };
 struct Camera {
 	// The pose of the camera in the world, same as the transform that takes you from camera
 	// to world
-	Trans3f        pose;
+	Transform3f    pose;
 	float          vertical_fov;
 	float          near_clip;
 	float          far_clip;
@@ -79,7 +79,7 @@ struct Camera {
 	void lookAt(Vec3f center, Vec3f const& target)
 	{
 		// We should probably inverse here
-		pose = static_cast<Trans3f>(ufo::lookAt<float, RightHanded>(center, target, up));
+		pose = static_cast<Transform3f>(ufo::lookAt<float, RightHanded>(center, target, up));
 	}
 
 	[[nodiscard]] Image<Ray3> rays(std::size_t rows, std::size_t cols) const
