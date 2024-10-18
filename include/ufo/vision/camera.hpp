@@ -170,8 +170,8 @@ struct Camera {
 		Mat4x4f view(pose);
 		Mat4x4f view_inv = inverse(view);
 
-		std::cout << "Projection\n" << proj << '\n';
-		std::cout << "View\n" << view << '\n';
+		// std::cout << "Projection\n" << proj << '\n';
+		// std::cout << "View\n" << view << '\n';
 
 		Image<Ray3> rays(rows, cols);
 
@@ -189,11 +189,11 @@ struct Camera {
 				// rays(row, col).direction.z = 0;
 				rays(row, col).origin = Vec3f(view_inv * Vec4f(Vec3f(0), 1));
 
-				static auto the_id = std::this_thread::get_id();
-				if (std::this_thread::get_id() == the_id && 0 == row && 0 == col) {
+				// static auto the_id = std::this_thread::get_id();
+				// if (std::this_thread::get_id() == the_id && 0 == row && 0 == col) {
 					// std::cout << pose.translation << '\n';
-					std::cout << rays(row, col).direction << "\n\n";
-				}
+					// std::cout << rays(row, col).direction << "\n\n";
+				// }
 
 				// rays(row, col).origin = Vec3f(5.0f, 4.0f, 1.5f);
 			}
