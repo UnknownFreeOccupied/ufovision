@@ -136,7 +136,7 @@ struct Color {
 		alpha = static_cast<value_type>(std::numeric_limits<value_type>::max() * v);
 	}
 
-	void swap(Color &other) noexcept
+	void swap(Color& other) noexcept
 	{
 		std::swap(alpha, other.alpha);
 		std::swap(blue, other.blue);
@@ -159,88 +159,101 @@ struct Color {
 	 * @return Color
 	 */
 	template <class InputIt>
-	[[nodiscard]] static Color blend(InputIt first, InputIt last,
-	                                      ColorBlendingMode blend_mode)
+	[[nodiscard]] static constexpr Color blend(InputIt first, InputIt last,
+	                                           ColorBlendingMode blend_mode)
 	{
 		switch (blend_mode) {
 			case ColorBlendingMode::MEAN: {
-				std::uint32_t alpha{}, blue{}, green{}, red{}, num{};
+				unsigned alpha{};
+				unsigned blue{};
+				unsigned green{};
+				unsigned red{};
+				unsigned num{};
 				for (; first != last; ++first) {
 					Color c = *first;
-					num += c.empty() ? 0 : 1;
-					alpha += c.alpha;
-					blue += c.blue;
-					green += c.green;
-					red += c.red;
+					num += c.empty() ? 0u : 1u;
+					alpha += static_cast<unsigned>(c.alpha);
+					blue += static_cast<unsigned>(c.blue);
+					green += static_cast<unsigned>(c.green);
+					red += static_cast<unsigned>(c.red);
 				}
 
-				double f = num ? 1.0 / num : 0.0;
+				float f = num ? 1.0f / num : 0.0f;
 				return {static_cast<Color::value_type>(f * red),
 				        static_cast<Color::value_type>(f * green),
 				        static_cast<Color::value_type>(f * blue),
 				        static_cast<Color::value_type>(f * alpha)};
 			}
 			case ColorBlendingMode::MEAN_ALPHA: {
-				std::uint32_t alpha{}, blue{}, green{}, red{}, num{};
+				unsigned alpha{};
+				unsigned blue{};
+				unsigned green{};
+				unsigned red{};
+				unsigned num{};
 				for (; first != last; ++first) {
-					Color         c = *first;
-					std::uint32_t n = c.empty() ? 0u : 1u;
-					std::uint32_t a = c.alpha;
-					std::uint32_t b = c.blue;
-					std::uint32_t g = c.green;
-					std::uint32_t r = c.red;
+					Color c = *first;
+					num += c.empty() ? 0u : 1u;
+					unsigned a = static_cast<unsigned>(c.alpha);
+					unsigned b = static_cast<unsigned>(c.blue);
+					unsigned g = static_cast<unsigned>(c.green);
+					unsigned r = static_cast<unsigned>(c.red);
 					alpha += a;
 					blue += a * b;
 					green += a * g;
 					red += a * r;
-					num += n;
 				}
 
-				double f = num ? 1.0 / alpha : 0.0;
+				float f = num ? 1.0f / alpha : 0.0f;
 				return {static_cast<Color::value_type>(f * red),
 				        static_cast<Color::value_type>(f * green),
 				        static_cast<Color::value_type>(f * blue),
 				        static_cast<Color::value_type>(num ? alpha / num : 0)};
 			}
 			case ColorBlendingMode::SQ_MEAN: {
-				std::uint32_t alpha{}, blue{}, green{}, red{}, num{};
+				unsigned alpha{};
+				unsigned blue{};
+				unsigned green{};
+				unsigned red{};
+				unsigned num{};
 				for (; first != last; ++first) {
-					Color         c = *first;
-					std::uint32_t n = c.empty() ? 0u : 1u;
-					std::uint32_t a = c.alpha;
-					std::uint32_t b = c.blue;
-					std::uint32_t g = c.green;
-					std::uint32_t r = c.red;
+					Color c = *first;
+					num += c.empty() ? 0u : 1u;
+					unsigned a = static_cast<unsigned>(c.alpha);
+					unsigned b = static_cast<unsigned>(c.blue);
+					unsigned g = static_cast<unsigned>(c.green);
+					unsigned r = static_cast<unsigned>(c.red);
 					alpha += a;
 					blue += b * b;
 					green += g * g;
 					red += r * r;
-					num += n;
 				}
 
-				double f = num ? 1.0 / num : 0.0;
+				float f = num ? 1.0f / alpha : 0.0f;
 				return {static_cast<Color::value_type>(std::sqrt(f * red)),
 				        static_cast<Color::value_type>(std::sqrt(f * green)),
 				        static_cast<Color::value_type>(std::sqrt(f * blue)),
 				        static_cast<Color::value_type>(f * alpha)};
 			}
 			case ColorBlendingMode::SQ_MEAN_ALPHA: {
-				std::uint32_t alpha{}, blue{}, green{}, red{}, num{};
+				unsigned alpha{};
+				unsigned blue{};
+				unsigned green{};
+				unsigned red{};
+				unsigned num{};
 				for (; first != last; ++first) {
-					Color         c = *first;
-					std::uint32_t n = c.empty() ? 0u : 1u;
-					std::uint32_t a = c.alpha;
-					std::uint32_t b = c.blue;
-					std::uint32_t g = c.green;
-					std::uint32_t r = c.red;
+					Color c = *first;
+					num += c.empty() ? 0u : 1u;
+					unsigned a = static_cast<unsigned>(c.alpha);
+					unsigned b = static_cast<unsigned>(c.blue);
+					unsigned g = static_cast<unsigned>(c.green);
+					unsigned r = static_cast<unsigned>(c.red);
 					alpha += a;
 					blue += a * b * b;
 					green += a * g * g;
 					red += a * r * r;
-					num += n;
 				}
 
-				double f = num ? 1.0 / alpha : 0.0;
+				float f = num ? 1.0f / alpha : 0.0f;
 				return {static_cast<Color::value_type>(std::sqrt(f * red)),
 				        static_cast<Color::value_type>(std::sqrt(f * green)),
 				        static_cast<Color::value_type>(std::sqrt(f * blue)),
@@ -262,9 +275,12 @@ struct Color {
 	 * @return Color
 	 */
 	template <class Container>
-	[[nodiscard]] static Color blend(Container const &c, ColorBlendingMode blend_mode)
+	[[nodiscard]] static constexpr Color blend(Container const&  c,
+	                                           ColorBlendingMode blend_mode)
 	{
-		return blend(std::begin(c), std::end(c), blend_mode);
+		using std::begin;
+		using std::end;
+		return blend(begin(c), end(c), blend_mode);
 	}
 
 	/*!
@@ -276,14 +292,16 @@ struct Color {
 	 * @param blend_mode
 	 * @return Color
 	 */
-	[[nodiscard]] static Color blend(std::initializer_list<Color> ilist,
-	                                      ColorBlendingMode            blend_mode)
+	[[nodiscard]] static constexpr Color blend(std::initializer_list<Color> ilist,
+	                                           ColorBlendingMode            blend_mode)
 	{
-		return blend(std::begin(ilist), std::end(ilist), blend_mode);
+		using std::begin;
+		using std::end;
+		return blend(begin(ilist), end(ilist), blend_mode);
 	}
 };
 
-inline std::ostream &operator<<(std::ostream &out, ufo::Color color)
+inline std::ostream& operator<<(std::ostream& out, ufo::Color color)
 {
 	return out << "Red: " << +color.red << " Green: " << +color.green
 	           << " Blue: " << +color.blue << " Alpha: " << +color.alpha;
