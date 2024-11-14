@@ -101,7 +101,8 @@ struct Camera {
 		return Image<Ray3>(0, 0);
 	}
 
- private:
+	// TODO: Make private?
+ public:
 	template <class ExecutionPolicy>
 	[[nodiscard]] Image<Ray3> raysPerspective(ExecutionPolicy&& policy, std::size_t rows,
 	                                          std::size_t cols) const
@@ -121,7 +122,7 @@ struct Camera {
 			auto r = ((row + 0.5f) / rows) * 2.0f - 1.0f;
 			for (std::size_t col{}; col < cols; ++col) {
 				auto  c = ((col + 0.5f) / cols) * 2.0f - 1.0f;
-				Vec4f p_nds_h(c, -r, -1.0f, 1.0f);
+				Vec4f p_nds_h(c, r, -1.0f, 1.0f);
 				auto  dir_eye            = proj_inv * p_nds_h;
 				dir_eye.w                = 0.0f;
 				auto dir_world           = normalize(Vec3f(view_inv * dir_eye));
@@ -191,8 +192,8 @@ struct Camera {
 
 				// static auto the_id = std::this_thread::get_id();
 				// if (std::this_thread::get_id() == the_id && 0 == row && 0 == col) {
-					// std::cout << pose.translation << '\n';
-					// std::cout << rays(row, col).direction << "\n\n";
+				// std::cout << pose.translation << '\n';
+				// std::cout << rays(row, col).direction << "\n\n";
 				// }
 
 				// rays(row, col).origin = Vec3f(5.0f, 4.0f, 1.5f);
