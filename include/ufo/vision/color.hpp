@@ -64,30 +64,28 @@ enum class ColorBlendingMode { MEAN, MEAN_ALPHA, SQ_MEAN, SQ_MEAN_ALPHA, NONE };
 struct Color {
 	using value_type = std::uint8_t;
 
-	value_type alpha{std::numeric_limits<value_type>::max()};
-	value_type blue{};
-	value_type green{};
 	value_type red{};
+	value_type green{};
+	value_type blue{};
+	value_type alpha{std::numeric_limits<value_type>::max()};
 
 	constexpr Color() = default;
 
-	constexpr Color(value_type v) : alpha(v), blue(v), green(v), red(v) {}
-
-	constexpr Color(value_type v, value_type alpha)
-	    : alpha(alpha), blue(v), green(v), red(v)
+	constexpr Color(value_type v, value_type alpha = std::numeric_limits<value_type>::max())
+	    : red(v), green(v), blue(v), alpha(alpha)
 	{
 	}
 
 	constexpr Color(value_type red, value_type green, value_type blue,
 	                value_type alpha = std::numeric_limits<value_type>::max())
-	    : alpha(alpha), blue(blue), green(green), red(red)
+	    : red(red), green(green), blue(blue), alpha(alpha)
 	{
 	}
 
 	friend constexpr bool operator==(Color lhs, Color rhs)
 	{
-		return lhs.alpha == rhs.alpha && lhs.blue == rhs.blue && lhs.green == rhs.green &&
-		       lhs.red == rhs.red;
+		return lhs.red == rhs.red && lhs.green == rhs.green && lhs.blue == rhs.blue &&
+		       lhs.alpha == rhs.alpha;
 	}
 
 	friend constexpr bool operator!=(Color lhs, Color rhs) { return !(lhs == rhs); }
@@ -138,15 +136,15 @@ struct Color {
 
 	void swap(Color& other) noexcept
 	{
-		std::swap(alpha, other.alpha);
-		std::swap(blue, other.blue);
-		std::swap(green, other.green);
 		std::swap(red, other.red);
+		std::swap(green, other.green);
+		std::swap(blue, other.blue);
+		std::swap(alpha, other.alpha);
 	}
 
 	[[nodiscard]] constexpr inline bool empty() const noexcept { return 0 == alpha; }
 
-	constexpr inline void clear() noexcept { alpha = blue = green = red = 0; }
+	constexpr inline void clear() noexcept { red = green = blue = alpha = 0; }
 
 	/*!
 	 * @brief
@@ -164,18 +162,18 @@ struct Color {
 	{
 		switch (blend_mode) {
 			case ColorBlendingMode::MEAN: {
-				unsigned alpha{};
-				unsigned blue{};
-				unsigned green{};
 				unsigned red{};
+				unsigned green{};
+				unsigned blue{};
+				unsigned alpha{};
 				unsigned num{};
 				for (; first != last; ++first) {
 					Color c = *first;
 					num += c.empty() ? 0u : 1u;
-					alpha += static_cast<unsigned>(c.alpha);
-					blue += static_cast<unsigned>(c.blue);
-					green += static_cast<unsigned>(c.green);
 					red += static_cast<unsigned>(c.red);
+					green += static_cast<unsigned>(c.green);
+					blue += static_cast<unsigned>(c.blue);
+					alpha += static_cast<unsigned>(c.alpha);
 				}
 
 				float f = num ? 1.0f / num : 0.0f;
@@ -185,10 +183,10 @@ struct Color {
 				        static_cast<Color::value_type>(f * alpha)};
 			}
 			case ColorBlendingMode::MEAN_ALPHA: {
-				unsigned alpha{};
-				unsigned blue{};
-				unsigned green{};
 				unsigned red{};
+				unsigned green{};
+				unsigned blue{};
+				unsigned alpha{};
 				unsigned num{};
 				for (; first != last; ++first) {
 					Color c = *first;
@@ -197,10 +195,10 @@ struct Color {
 					unsigned b = static_cast<unsigned>(c.blue);
 					unsigned g = static_cast<unsigned>(c.green);
 					unsigned r = static_cast<unsigned>(c.red);
-					alpha += a;
-					blue += a * b;
-					green += a * g;
 					red += a * r;
+					green += a * g;
+					blue += a * b;
+					alpha += a;
 				}
 
 				float f = num ? 1.0f / alpha : 0.0f;
@@ -210,10 +208,10 @@ struct Color {
 				        static_cast<Color::value_type>(num ? alpha / num : 0)};
 			}
 			case ColorBlendingMode::SQ_MEAN: {
-				unsigned alpha{};
-				unsigned blue{};
-				unsigned green{};
 				unsigned red{};
+				unsigned green{};
+				unsigned blue{};
+				unsigned alpha{};
 				unsigned num{};
 				for (; first != last; ++first) {
 					Color c = *first;
@@ -222,10 +220,10 @@ struct Color {
 					unsigned b = static_cast<unsigned>(c.blue);
 					unsigned g = static_cast<unsigned>(c.green);
 					unsigned r = static_cast<unsigned>(c.red);
-					alpha += a;
-					blue += b * b;
-					green += g * g;
 					red += r * r;
+					green += g * g;
+					blue += b * b;
+					alpha += a;
 				}
 
 				float f = num ? 1.0f / alpha : 0.0f;
@@ -235,22 +233,22 @@ struct Color {
 				        static_cast<Color::value_type>(f * alpha)};
 			}
 			case ColorBlendingMode::SQ_MEAN_ALPHA: {
-				unsigned alpha{};
-				unsigned blue{};
-				unsigned green{};
 				unsigned red{};
+				unsigned green{};
+				unsigned blue{};
+				unsigned alpha{};
 				unsigned num{};
 				for (; first != last; ++first) {
 					Color c = *first;
 					num += c.empty() ? 0u : 1u;
-					unsigned a = static_cast<unsigned>(c.alpha);
-					unsigned b = static_cast<unsigned>(c.blue);
-					unsigned g = static_cast<unsigned>(c.green);
 					unsigned r = static_cast<unsigned>(c.red);
-					alpha += a;
-					blue += a * b * b;
-					green += a * g * g;
+					unsigned g = static_cast<unsigned>(c.green);
+					unsigned b = static_cast<unsigned>(c.blue);
+					unsigned a = static_cast<unsigned>(c.alpha);
 					red += a * r * r;
+					green += a * g * g;
+					blue += a * b * b;
+					alpha += a;
 				}
 
 				float f = num ? 1.0f / alpha : 0.0f;
