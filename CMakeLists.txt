@@ -8,24 +8,24 @@ project(ufovision
 
 add_subdirectory(1stparty)
 
-add_library(ufovision INTERFACE)
-add_library(UFO::Vision ALIAS ufovision)
+add_library(Vision INTERFACE)
+add_library(UFO::Vision ALIAS Vision)
 
-set_target_properties(ufovision PROPERTIES
+set_target_properties(Vision PROPERTIES
 	VERSION ${PROJECT_VERSION}
 	SOVERSION ${PROJECT_VERSION_MAJOR}
 	CXX_STANDARD 17
 	CXX_EXTENSIONS OFF
 )
 
-target_include_directories(ufovision INTERFACE
+target_include_directories(Vision INTERFACE
 	$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
 	$<INSTALL_INTERFACE:include>
 )
 
-target_compile_features(ufovision INTERFACE cxx_std_17)
+target_compile_features(Vision INTERFACE cxx_std_17)
 
-target_link_libraries(ufovision INTERFACE UFO::Math)
+target_link_libraries(Vision INTERFACE UFO::Math)
 
 include(GNUInstallDirs)
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/
@@ -37,7 +37,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   add_subdirectory(tests)
 endif()
 
-install(TARGETS ufovision
+install(TARGETS Vision
 	EXPORT ufovisionTargets
 	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
