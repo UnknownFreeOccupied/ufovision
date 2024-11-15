@@ -1,1 +1,1 @@
-include("ufomath/ufomath.cmake")
+include("math/math.cmake")
