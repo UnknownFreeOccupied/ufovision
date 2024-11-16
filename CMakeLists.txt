@@ -1,76 +1,68 @@
-cmake_minimum_required(VERSION 3.5...3.16)
-
-project(ufovision
-	VERSION 2.0.0
-	DESCRIPTION "The UFO vision library"
-	LANGUAGES CXX
-)
-
-add_subdirectory(1stparty)
-
 add_library(Vision INTERFACE)
 add_library(UFO::Vision ALIAS Vision)
 
+target_link_libraries(Vision INTERFACE UFO::Utility)
+
 set_target_properties(Vision PROPERTIES
-	VERSION ${PROJECT_VERSION}
-	SOVERSION ${PROJECT_VERSION_MAJOR}
-	CXX_STANDARD 17
-	CXX_EXTENSIONS OFF
+	INTERFACE_VERSION ${PROJECT_VERSION}
+	INTERFACE_SOVERSION ${PROJECT_VERSION_MAJOR}
+	INTERFACE_CXX_STANDARD 17
+	INTERFACE_CXX_EXTENSIONS OFF
 )
-
-target_include_directories(Vision INTERFACE
-	$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-	$<INSTALL_INTERFACE:include>
-)
-
-target_compile_features(Vision INTERFACE cxx_std_17)
-
-target_link_libraries(Vision INTERFACE UFO::Math)
 
 include(GNUInstallDirs)
-install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/
-	DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+
+target_include_directories(Vision 
+	INTERFACE
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+		$<INSTALL_INTERFACE:include>
 )
 
-# Only enable tests when we're the root project
-if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+if(UFO_TESTING)
   add_subdirectory(tests)
 endif()
 
-install(TARGETS Vision
-	EXPORT ufovisionTargets
-	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+if(UFO_DOCS)
+	add_subdirectory(docs)
+endif()
+
+install(TARGETS Vision EXPORT Vision-targets
+	COMPONENT Vision
+	LIBRARY  DESTINATION lib
+	ARCHIVE  DESTINATION lib
+	RUNTIME  DESTINATION bin
+  INCLUDES DESTINATION include
 )
 
-install(EXPORT ufovisionTargets
-	FILE "ufovisionTargets.cmake"
-	NAMESPACE UFO::
-	DESTINATION lib/cmake/${PROJECT_NAME}
+install(EXPORT Vision-targets
+  FILE "Vision-targets.cmake"
+  NAMESPACE UFO::
+  DESTINATION lib/cmake/${PROJECT_NAME}
+	COMPONENT Vision
 )
 
 include(CMakePackageConfigHelpers)
-configure_package_config_file(
-	"${PROJECT_SOURCE_DIR}/cmake/ufovisionConfig.cmake.in"
-	"${CMAKE_CURRENT_BINARY_DIR}/ufovisionConfig.cmake"
-	INSTALL_DESTINATION lib/cmake/${PROJECT_NAME}
-)
-
 write_basic_package_version_file(
-	"${CMAKE_CURRENT_BINARY_DIR}/ufovisionConfigVersion.cmake"
+	"${CMAKE_CURRENT_BINARY_DIR}/Vision-config-version.cmake"
 	VERSION ${PROJECT_VERSION}
 	COMPATIBILITY SameMajorVersion
 )
 
-INSTALL(
-	FILES
-	"${CMAKE_CURRENT_BINARY_DIR}/ufovisionConfig.cmake"
-	"${CMAKE_CURRENT_BINARY_DIR}/ufovisionConfigVersion.cmake"
-	DESTINATION lib/cmake/${PROJECT_NAME}
+configure_package_config_file(
+	"${CMAKE_CURRENT_SOURCE_DIR}/cmake/Vision-config.cmake.in"
+	"${CMAKE_CURRENT_BINARY_DIR}/Vision-config.cmake"
+	INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
 )
 
 install(
-	DIRECTORY ${PROJECT_SOURCE_DIR}/include/
-	DESTINATION include
+  FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/Vision-config.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/Vision-config-version.cmake"
+	DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
+  COMPONENT Vision
+)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include
+	COMPONENT Vision
+	DESTINATION ${CMAKE_INSTALL_PREFIX}
 )
