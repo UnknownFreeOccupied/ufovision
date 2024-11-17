@@ -1,2 +1,2 @@
-# ufocore
-The UFO core library
+# ufovision
+The UFO vision library
