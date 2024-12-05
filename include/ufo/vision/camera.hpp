@@ -55,6 +55,7 @@
 // STL
 #include <cassert>
 #include <cmath>
+#include <numeric> 
 
 namespace ufo
 {
