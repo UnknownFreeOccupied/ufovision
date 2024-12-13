@@ -55,7 +55,7 @@
 // STL
 #include <cassert>
 #include <cmath>
-#include <numeric> 
+#include <numeric>
 
 namespace ufo
 {
@@ -69,6 +69,8 @@ struct Camera {
 	// The pose of the camera in the world, same as the transform that takes you from camera
 	// to world
 	Transform3f    pose;
+	std::size_t    rows;
+	std::size_t    cols;
 	float          vertical_fov;
 	float          near_clip;
 	float          far_clip;

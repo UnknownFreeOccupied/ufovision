@@ -9,7 +9,7 @@
 
   <license>BSD</license>
 
-  <url type="website">https://github.com/danielduberg/ufovision</url>
+  <url type="website">https://github.com/unknownfreeoccupied/ufovision</url>
 
   <buildtool_depend>cmake</buildtool_depend>
   

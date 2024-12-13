@@ -1,12 +1,13 @@
-option(UFO_VISION_DOCS     "Generate documentation" OFF)
-option(UFO_VISION_TESTING  "Unit testing"           OFF)
-option(UFO_VISION_COVERAGE "Test Coverage"          OFF)
+option(UFOVISION_BUILD_DOCS     "Generate documentation" OFF)
+option(UFOVISION_BUILD_TESTS    "Unit testing"           OFF)
+option(UFOVISION_BUILD_COVERAGE "Test Coverage"          OFF)
 
 add_library(Vision INTERFACE)
 add_library(UFO::Vision ALIAS Vision)
 
 target_link_libraries(Vision 
 	INTERFACE 
+		UFO::Geometry
 		UFO::Math
 )
 
@@ -18,11 +19,11 @@ target_include_directories(Vision
 		$<INSTALL_INTERFACE:include>
 )
 
-if(UFO_TESTING OR UFO_VISION_TESTING)
+if(UFO_BUILD_TESTS OR UFOVISION_BUILD_TESTS)
   add_subdirectory(tests)
 endif()
 
-if(UFO_DOCS OR UFO_VISION_DOCS)
+if(UFO_BUILD_DOCS OR UFOVISION_BUILD_DOCS)
 	add_subdirectory(docs)
 endif()
 
