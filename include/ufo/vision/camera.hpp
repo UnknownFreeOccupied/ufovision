@@ -142,25 +142,47 @@ struct Camera {
 			}
 		};
 
-		if constexpr (execution::is_seq_v<ExecutionPolicy>) {
+		if constexpr (execution::is_seq_v<ExecutionPolicy> ||
+		              execution::is_unseq_v<ExecutionPolicy>) {
 			for (std::size_t row{}; row < rows; ++row) {
 				fun(row);
 			};
 
 			return rays;
-		} else if constexpr (execution::is_tbb_v<ExecutionPolicy>) {
+		} else if constexpr (execution::is_par_v<ExecutionPolicy> ||
+		                     execution::is_par_unseq_v<ExecutionPolicy>) {
 			std::vector<std::size_t> indices(rows);
 			std::iota(indices.begin(), indices.end(), 0);
-			std::for_each(UFO_TBB_PAR indices.begin(), indices.end(), fun);
+			if constexpr (execution::is_par_v<ExecutionPolicy>) {
+				std::for_each(UFO_PAR_STL_PAR indices.begin(), indices.end(), fun);
+			} else {
+				std::for_each(UFO_PAR_STL_PAR_UNSEQ indices.begin(), indices.end(), fun);
+			}
 			return rays;
-		} else if constexpr (execution::is_omp_v<ExecutionPolicy>) {
+		}
+#if defined(UFO_PAR_GCD)
+		else if constexpr (execution::is_gcd_v<ExecutionPolicy> ||
+		                   execution::is_gcd_unseq_v<ExecutionPolicy>) {
+			// TODO: Implement
+			static_assert(dependent_false_v<ExecutionPolicy>,
+			              "Not implemented for the execution policy");
+		}
+#endif
+		else if constexpr (execution::is_tbb_v<ExecutionPolicy> ||
+		                   execution::is_tbb_unseq_v<ExecutionPolicy>) {
+			// TODO: Implement
+			static_assert(dependent_false_v<ExecutionPolicy>,
+			              "Not implemented for the execution policy");
+		} else if constexpr (execution::is_omp_v<ExecutionPolicy> ||
+		                     execution::is_omp_unseq_v<ExecutionPolicy>) {
 #pragma omp parallel for
 			for (std::size_t row = 0; row < rows; ++row) {
 				fun(row);
 			};
 			return rays;
 		} else {
-			// TODO: Error
+			static_assert(dependent_false_v<ExecutionPolicy>,
+			              "Not implemented for the execution policy");
 		}
 	}
 
@@ -203,25 +225,47 @@ struct Camera {
 			}
 		};
 
-		if constexpr (execution::is_seq_v<ExecutionPolicy>) {
+		if constexpr (execution::is_seq_v<ExecutionPolicy> ||
+		              execution::is_unseq_v<ExecutionPolicy>) {
 			for (std::size_t row{}; row < rows; ++row) {
 				fun(row);
 			};
 
 			return rays;
-		} else if constexpr (execution::is_tbb_v<ExecutionPolicy>) {
+		} else if constexpr (execution::is_par_v<ExecutionPolicy> ||
+		                     execution::is_par_unseq_v<ExecutionPolicy>) {
 			std::vector<std::size_t> indices(rows);
 			std::iota(indices.begin(), indices.end(), 0);
-			std::for_each(UFO_TBB_PAR indices.begin(), indices.end(), fun);
+			if constexpr (execution::is_par_v<ExecutionPolicy>) {
+				std::for_each(UFO_PAR_STL_PAR indices.begin(), indices.end(), fun);
+			} else {
+				std::for_each(UFO_PAR_STL_PAR_UNSEQ indices.begin(), indices.end(), fun);
+			}
 			return rays;
-		} else if constexpr (execution::is_omp_v<ExecutionPolicy>) {
+		}
+#if defined(UFO_PAR_GCD)
+		else if constexpr (execution::is_gcd_v<ExecutionPolicy> ||
+		                   execution::is_gcd_unseq_v<ExecutionPolicy>) {
+			// TODO: Implement
+			static_assert(dependent_false_v<ExecutionPolicy>,
+			              "Not implemented for the execution policy");
+		}
+#endif
+		else if constexpr (execution::is_tbb_v<ExecutionPolicy> ||
+		                   execution::is_tbb_unseq_v<ExecutionPolicy>) {
+			// TODO: Implement
+			static_assert(dependent_false_v<ExecutionPolicy>,
+			              "Not implemented for the execution policy");
+		} else if constexpr (execution::is_omp_v<ExecutionPolicy> ||
+		                     execution::is_omp_unseq_v<ExecutionPolicy>) {
 #pragma omp parallel for
 			for (std::size_t row = 0; row < rows; ++row) {
 				fun(row);
 			};
 			return rays;
 		} else {
-			// TODO: Error
+			static_assert(dependent_false_v<ExecutionPolicy>,
+			              "Not implemented for the execution policy");
 		}
 	}
 
