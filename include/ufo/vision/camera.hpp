@@ -85,20 +85,19 @@ struct Camera {
 		pose = static_cast<Transform3f>(ufo::lookAt<float, RightHanded>(center, target, up));
 	}
 
-	[[nodiscard]] Image<Ray3> rays(std::size_t rows, std::size_t cols) const
+	[[nodiscard]] Image<Ray3> rays() const
 	{
-		return rays(execution::seq, rows, cols);
+		return rays(execution::seq);
 	}
 
 	template <class ExecutionPolicy>
-	[[nodiscard]] Image<Ray3> rays(ExecutionPolicy&& policy, std::size_t rows,
-	                               std::size_t cols) const
+	[[nodiscard]] Image<Ray3> rays(ExecutionPolicy&& policy) const
 	{
 		switch (projection_type) {
 			case ProjectionType::PERSPECTIVE:
-				return raysPerspective(std::forward<ExecutionPolicy>(policy), rows, cols);
+				return raysPerspective(std::forward<ExecutionPolicy>(policy));
 			case ProjectionType::ORTHOGONAL:
-				return raysOrthogonal(std::forward<ExecutionPolicy>(policy), rows, cols);
+				return raysOrthogonal(std::forward<ExecutionPolicy>(policy));
 		}
 
 		return Image<Ray3>(0, 0);
@@ -107,10 +106,9 @@ struct Camera {
 	// TODO: Make private?
  public:
 	template <class ExecutionPolicy>
-	[[nodiscard]] Image<Ray3> raysPerspective(ExecutionPolicy&& policy, std::size_t rows,
-	                                          std::size_t cols) const
+	[[nodiscard]] Image<Ray3> raysPerspective(ExecutionPolicy&& policy) const
 	{
-		Mat4x4f proj     = projectionPerspective(rows, cols);
+		Mat4x4f proj     = projectionPerspective();
 		Mat4x4f proj_inv = inverse(proj);
 
 		Mat4x4f view(pose);
@@ -187,10 +185,9 @@ struct Camera {
 	}
 
 	template <class ExecutionPolicy>
-	[[nodiscard]] Image<Ray3> raysOrthogonal(ExecutionPolicy&& policy, std::size_t rows,
-	                                         std::size_t cols) const
+	[[nodiscard]] Image<Ray3> raysOrthogonal(ExecutionPolicy&& policy) const
 	{
-		Mat4x4f proj     = projectionOrthogonal(rows, cols);
+		Mat4x4f proj     = projectionOrthogonal();
 		Mat4x4f proj_inv = inverse(proj);
 
 		Mat4x4f view(pose);
@@ -269,7 +266,7 @@ struct Camera {
 		}
 	}
 
-	[[nodiscard]] Mat4x4f projectionPerspective(std::size_t rows, std::size_t cols) const
+	[[nodiscard]] Mat4x4f projectionPerspective() const
 	{
 		if (std::isinf(far_clip)) {
 			return infinitePerspective(vertical_fov, cols / static_cast<float>(rows),
@@ -280,7 +277,7 @@ struct Camera {
 		}
 	}
 
-	[[nodiscard]] Mat4x4f projectionOrthogonal(std::size_t rows, std::size_t cols) const
+	[[nodiscard]] Mat4x4f projectionOrthogonal() const
 	{
 		if (std::isinf(far_clip)) {
 			return orthogonal<float>(
