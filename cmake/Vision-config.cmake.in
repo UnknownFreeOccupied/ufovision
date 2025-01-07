@@ -1,8 +1,7 @@
 @PACKAGE_INIT@
 
-# Depends on Geometry, Math components
-# FIXME: This is a bit hacky
 include("${CMAKE_CURRENT_LIST_DIR}/Geometry-config.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/Math-config.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/Utility-config.cmake")
 
 include("${CMAKE_CURRENT_LIST_DIR}/Vision-targets.cmake")
