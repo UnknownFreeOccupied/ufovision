@@ -9,6 +9,7 @@ target_link_libraries(Vision
 	INTERFACE 
 		UFO::Geometry
 		UFO::Math
+		UFO::Utility
 )
 
 include(GNUInstallDirs)

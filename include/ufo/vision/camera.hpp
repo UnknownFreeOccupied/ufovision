@@ -50,6 +50,7 @@
 #include <ufo/math/mat4x4.hpp>
 #include <ufo/math/transform3.hpp>
 #include <ufo/math/vec.hpp>
+#include <ufo/utility/index_iterator.hpp>
 #include <ufo/vision/image.hpp>
 
 // STL
@@ -78,6 +79,8 @@ struct Camera {
 	Vec3f          up{0.0f, 0.0f, 1.0f};
 	ProjectionType projection_type = ProjectionType::PERSPECTIVE;
 
+	float w{};  // TODO: Only used for 4D
+
 	template <bool RightHanded = true>
 	void lookAt(Vec3f center, Vec3f const& target)
 	{
@@ -85,9 +88,28 @@ struct Camera {
 		pose = static_cast<Transform3f>(ufo::lookAt<float, RightHanded>(center, target, up));
 	}
 
+	[[nodiscard]] Mat4x4f projection() const
+	{
+		switch (projection_type) {
+			case ProjectionType::PERSPECTIVE: return projectionPerspective();
+			case ProjectionType::ORTHOGONAL: return projectionOrthogonal();
+		}
+
+		assert(false);
+		return Mat4x4f();
+	}
+
+	[[nodiscard]] Mat4x4f view() const { return Mat4x4f(pose); }
+
 	[[nodiscard]] Image<Ray3> rays() const
 	{
-		return rays(execution::seq);
+		switch (projection_type) {
+			case ProjectionType::PERSPECTIVE: return raysPerspective();
+			case ProjectionType::ORTHOGONAL: return raysOrthogonal();
+		}
+
+		assert(false);
+		return Image<Ray3>(0, 0);
 	}
 
 	template <class ExecutionPolicy>
@@ -100,83 +122,132 @@ struct Camera {
 				return raysOrthogonal(std::forward<ExecutionPolicy>(policy));
 		}
 
+		assert(false);
 		return Image<Ray3>(0, 0);
 	}
 
-	// TODO: Make private?
- public:
-	template <class ExecutionPolicy>
-	[[nodiscard]] Image<Ray3> raysPerspective(ExecutionPolicy&& policy) const
+ private:
+	[[nodiscard]] Image<Ray3> raysPerspective() const
 	{
-		Mat4x4f proj     = projectionPerspective();
-		Mat4x4f proj_inv = inverse(proj);
-
-		Mat4x4f view(pose);
-		Mat4x4f view_inv = inverse(view);
-
-		// std::cout << "Projection\n" << proj << '\n';
-		// std::cout << "View\n" << view << '\n';
+		auto proj_inv = inverse(projection());
+		auto view_inv = inverse(view());
 
 		Image<Ray3> rays(rows, cols);
 
-		auto fun = [&](std::size_t row) {
+		Vec3f origin(view_inv * Vec4f(Vec3f(0), 1));
+
+		for (std::size_t row{}; rows > row; ++row) {
 			auto r = ((row + 0.5f) / rows) * 2.0f - 1.0f;
-			for (std::size_t col{}; col < cols; ++col) {
+			for (std::size_t col{}; cols > col; ++col) {
 				auto  c = ((col + 0.5f) / cols) * 2.0f - 1.0f;
 				Vec4f p_nds_h(c, r, -1.0f, 1.0f);
 				auto  dir_eye            = proj_inv * p_nds_h;
 				dir_eye.w                = 0.0f;
-				auto dir_world           = normalize(Vec3f(view_inv * dir_eye));
-				rays(row, col).direction = dir_world;
-				rays(row, col).origin    = Vec3f(view_inv * Vec4f(Vec3f(0), 1));
-
-				// static auto the_id = std::this_thread::get_id();
-				// if (std::this_thread::get_id() == the_id && 0 == row && 0 == col) {
-				// 	// std::cout << pose.translation << '\n';
-				// 	// std::cout << rays(row, col).direction << "\n\n";
-				// }
-
-				// rays(row, col).origin = Vec3f(5.0f, 4.0f, 1.5f);
+				rays(row, col).origin    = origin;
+				rays(row, col).direction = normalize(Vec3f(view_inv * dir_eye));
 			}
+		}
+
+		return rays;
+	}
+
+	[[nodiscard]] Image<Ray3> raysOrthogonal() const
+	{
+		// TODO: Implement
+
+		Image<Ray3> rays(rows, cols);
+
+		// TODO: Implement
+
+		return rays;
+	}
+
+	template <class ExecutionPolicy>
+	[[nodiscard]] Image<Ray3> raysPerspective(ExecutionPolicy&& policy) const
+	{
+		auto fun = [rows = rows, cols = cols, proj_inv = inverse(projection()),
+		            view_inv = inverse(view())](std::size_t row, std::size_t col) {
+			auto  r = ((row + 0.5f) / rows) * 2.0f - 1.0f;
+			auto  c = ((col + 0.5f) / cols) * 2.0f - 1.0f;
+			Vec4f p_nds_h(c, r, -1.0f, 1.0f);
+			auto  dir_eye  = proj_inv * p_nds_h;
+			dir_eye.w      = 0.0f;
+			auto dir_world = normalize(Vec3f(view_inv * dir_eye));
+			return Ray3(Vec3f(view_inv * Vec4f(Vec3f(0), 1)), dir_world);
 		};
 
-		if constexpr (execution::is_seq_v<ExecutionPolicy> ||
-		              execution::is_unseq_v<ExecutionPolicy>) {
-			for (std::size_t row{}; row < rows; ++row) {
-				fun(row);
-			};
+		if constexpr (execution::is_stl_v<ExecutionPolicy>) {
+			Image<Ray3> rays(rows, cols);
 
-			return rays;
-		} else if constexpr (execution::is_par_v<ExecutionPolicy> ||
-		                     execution::is_par_unseq_v<ExecutionPolicy>) {
-			std::vector<std::size_t> indices(rows);
-			std::iota(indices.begin(), indices.end(), 0);
-			if constexpr (execution::is_par_v<ExecutionPolicy>) {
-				std::for_each(UFO_PAR_STL_PAR indices.begin(), indices.end(), fun);
-			} else {
-				std::for_each(UFO_PAR_STL_PAR_UNSEQ indices.begin(), indices.end(), fun);
-			}
+			IndexIterator<std::size_t> indices(0, rows);
+			std::for_each(execution::toSTL(policy), indices.begin(), indices.end(),
+			              [&rays, fun, cols = cols](std::size_t row) {
+				              for (std::size_t col{}; col < cols; ++col) {
+					              rays(row, col) = fun(row, col);
+				              }
+			              });
+
 			return rays;
 		}
 #if defined(UFO_PAR_GCD)
-		else if constexpr (execution::is_gcd_v<ExecutionPolicy> ||
-		                   execution::is_gcd_unseq_v<ExecutionPolicy>) {
-			// TODO: Implement
-			static_assert(dependent_false_v<ExecutionPolicy>,
-			              "Not implemented for the execution policy");
+		else if constexpr (execution::is_gcd_v<ExecutionPolicy>) {
+			__block Image<Ray3> rays(rows, cols);
+
+			dispatch_apply(rows, dispatch_get_global_queue(0, 0), ^(std::size_t row) {
+				for (std::size_t col{}; col < cols; ++col) {
+					rays(row, col) = fun(row, col);
+				}
+			});
+
+			return rays;
 		}
 #endif
-		else if constexpr (execution::is_tbb_v<ExecutionPolicy> ||
-		                   execution::is_tbb_unseq_v<ExecutionPolicy>) {
-			// TODO: Implement
-			static_assert(dependent_false_v<ExecutionPolicy>,
-			              "Not implemented for the execution policy");
-		} else if constexpr (execution::is_omp_v<ExecutionPolicy> ||
-		                     execution::is_omp_unseq_v<ExecutionPolicy>) {
+#if defined(UFO_PAR_TBB)
+		else if constexpr (execution::is_tbb_v<ExecutionPolicy>) {
+			Image<Ray3> rays(rows, cols);
+
+			oneapi::tbb::parallel_for(std::size_t(0), rows,
+			                          [&rays, fun, cols = cols](std::size_t row) {
+				                          for (std::size_t col{}; col < cols; ++col) {
+					                          rays(row, col) = fun(row, col);
+				                          }
+			                          });
+
+			return rays;
+		}
+#endif
+		else if constexpr (execution::is_omp_v<ExecutionPolicy>) {
+			Image<Ray3> rays(rows, cols);
+
+			if constexpr (execution::is_seq_v<ExecutionPolicy>) {
+				for (std::size_t row = 0; row < rows; ++row) {
+					for (std::size_t col = 0; col < cols; ++col) {
+						rays(col, row) = fun(row, col);
+					}
+				};
+			} else if constexpr (execution::is_unseq_v<ExecutionPolicy>) {
+#pragma omp simd
+				for (std::size_t row = 0; row < rows; ++row) {
+					for (std::size_t col = 0; col < cols; ++col) {
+						rays(col, row) = fun(row, col);
+					}
+				};
+			} else if constexpr (execution::is_par_v<ExecutionPolicy>) {
 #pragma omp parallel for
-			for (std::size_t row = 0; row < rows; ++row) {
-				fun(row);
-			};
+				for (std::size_t row = 0; row < rows; ++row) {
+					for (std::size_t col = 0; col < cols; ++col) {
+						rays(col, row) = fun(row, col);
+					}
+				};
+			} else if constexpr (execution::is_par_unseq_v<ExecutionPolicy>) {
+#pragma omp parallel for simd
+				for (std::size_t row = 0; row < rows; ++row) {
+					for (std::size_t col = 0; col < cols; ++col) {
+						rays(col, row) = fun(row, col);
+					}
+				};
+			}
+
 			return rays;
 		} else {
 			static_assert(dependent_false_v<ExecutionPolicy>,
@@ -222,48 +293,50 @@ struct Camera {
 			}
 		};
 
-		if constexpr (execution::is_seq_v<ExecutionPolicy> ||
-		              execution::is_unseq_v<ExecutionPolicy>) {
-			for (std::size_t row{}; row < rows; ++row) {
-				fun(row);
-			};
+		return rays;
 
-			return rays;
-		} else if constexpr (execution::is_par_v<ExecutionPolicy> ||
-		                     execution::is_par_unseq_v<ExecutionPolicy>) {
-			std::vector<std::size_t> indices(rows);
-			std::iota(indices.begin(), indices.end(), 0);
-			if constexpr (execution::is_par_v<ExecutionPolicy>) {
-				std::for_each(UFO_PAR_STL_PAR indices.begin(), indices.end(), fun);
-			} else {
-				std::for_each(UFO_PAR_STL_PAR_UNSEQ indices.begin(), indices.end(), fun);
-			}
-			return rays;
-		}
-#if defined(UFO_PAR_GCD)
-		else if constexpr (execution::is_gcd_v<ExecutionPolicy> ||
-		                   execution::is_gcd_unseq_v<ExecutionPolicy>) {
-			// TODO: Implement
-			static_assert(dependent_false_v<ExecutionPolicy>,
-			              "Not implemented for the execution policy");
-		}
-#endif
-		else if constexpr (execution::is_tbb_v<ExecutionPolicy> ||
-		                   execution::is_tbb_unseq_v<ExecutionPolicy>) {
-			// TODO: Implement
-			static_assert(dependent_false_v<ExecutionPolicy>,
-			              "Not implemented for the execution policy");
-		} else if constexpr (execution::is_omp_v<ExecutionPolicy> ||
-		                     execution::is_omp_unseq_v<ExecutionPolicy>) {
-#pragma omp parallel for
-			for (std::size_t row = 0; row < rows; ++row) {
-				fun(row);
-			};
-			return rays;
-		} else {
-			static_assert(dependent_false_v<ExecutionPolicy>,
-			              "Not implemented for the execution policy");
-		}
+		// 		if constexpr (execution::is_seq_v<ExecutionPolicy> ||
+		// 		              execution::is_unseq_v<ExecutionPolicy>) {
+		// 			for (std::size_t row{}; row < rows; ++row) {
+		// 				fun(row);
+		// 			};
+
+		// 			return rays;
+		// 		} else if constexpr (execution::is_par_v<ExecutionPolicy> ||
+		// 		                     execution::is_par_unseq_v<ExecutionPolicy>) {
+		// 			std::vector<std::size_t> indices(rows);
+		// 			std::iota(indices.begin(), indices.end(), 0);
+		// 			if constexpr (execution::is_par_v<ExecutionPolicy>) {
+		// 				std::for_each(UFO_PAR_STL_PAR indices.begin(), indices.end(), fun);
+		// 			} else {
+		// 				std::for_each(UFO_PAR_STL_PAR_UNSEQ indices.begin(), indices.end(), fun);
+		// 			}
+		// 			return rays;
+		// 		}
+		// #if defined(UFO_PAR_GCD)
+		// 		else if constexpr (execution::is_gcd_v<ExecutionPolicy> ||
+		// 		                   execution::is_gcd_unseq_v<ExecutionPolicy>) {
+		// 			// TODO: Implement
+		// 			static_assert(dependent_false_v<ExecutionPolicy>,
+		// 			              "Not implemented for the execution policy");
+		// 		}
+		// #endif
+		// 		else if constexpr (execution::is_tbb_v<ExecutionPolicy> ||
+		// 		                   execution::is_tbb_unseq_v<ExecutionPolicy>) {
+		// 			// TODO: Implement
+		// 			static_assert(dependent_false_v<ExecutionPolicy>,
+		// 			              "Not implemented for the execution policy");
+		// 		} else if constexpr (execution::is_omp_v<ExecutionPolicy> ||
+		// 		                     execution::is_omp_unseq_v<ExecutionPolicy>) {
+		// #pragma omp parallel for
+		// 			for (std::size_t row = 0; row < rows; ++row) {
+		// 				fun(row);
+		// 			};
+		// 			return rays;
+		// 		} else {
+		// 			static_assert(dependent_false_v<ExecutionPolicy>,
+		// 			              "Not implemented for the execution policy");
+		// 		}
 	}
 
 	[[nodiscard]] Mat4x4f projectionPerspective() const
@@ -291,12 +364,6 @@ struct Camera {
 		}
 	}
 };
-
-// inline std::ostream &operator<<(std::ostream &out, ufo::Color color)
-// {
-// 	return out << "Red: " << +color.red << " Green: " << +color.green
-// 	           << " Blue: " << +color.blue << " Alpha: " << +color.alpha;
-// }
 }  // namespace ufo
 
 #endif  // UFO_VISION_CAMERA_HPP
