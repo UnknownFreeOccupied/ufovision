@@ -46,7 +46,7 @@
 #define UFO_VISION_CAMERA_HPP
 
 // UFO
-#include <ufo/geometry/shape/ray.hpp>
+#include <ufo/geometry/ray.hpp>
 #include <ufo/math/mat4x4.hpp>
 #include <ufo/math/transform3.hpp>
 #include <ufo/math/vec.hpp>
